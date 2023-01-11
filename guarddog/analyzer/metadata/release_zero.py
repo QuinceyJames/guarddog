@@ -1,4 +1,4 @@
-""" Empty Information Detector
+""" Release Zero Detector
 
 Detects when a package has its latest release version to 0.0.0
 """
