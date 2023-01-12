@@ -11,6 +11,8 @@ import click
 from termcolor import colored
 
 from guarddog.analyzer.analyzer import Analyzer
+from guarddog.cli import heuristic
+from guarddog.cli.heuristic import heuristic_command
 from guarddog.scanners.package_scanner import PackageScanner
 from guarddog.scanners.project_scanner import RequirementsScanner
 
@@ -142,3 +144,6 @@ def exit_with_status_code(results):
     num_issues = results.get('issues', 0)
     if num_issues > 0:
         exit(EXIT_CODE_ISSUES_FOUND)
+
+
+cli.add_command(heuristic_command)
