@@ -11,6 +11,13 @@ def sorted_by_key(items: Iterable[HeuristicConfig]) -> Iterable[HeuristicConfig]
     return sorted(items, key=lambda item: item.key)
 
 
+def contains_key_filter(keys: Iterable[str], items: Iterable[HeuristicConfig]):
+    if keys:
+        return filter(lambda item: item.key in keys, items)
+
+    return items
+
+
 def max_key_len(items: Iterable[HeuristicConfig]) -> int:
     return max([len(item.key) for item in items])
 
@@ -33,26 +40,30 @@ def format_item_section(item: HeuristicConfig, spacing: int, **style_args) -> st
 
 
 @click.command("list")
+@click.argument("heuristic", nargs=-1)
 @click.option('-v', '--verbose', is_flag=True, help='Enables verbose mode')
-def list_command(verbose):
+def list_command(heuristic, verbose):
     """Get a list of all available heuristics"""
 
+    formatter = click.HelpFormatter()
+
     def build_section(name, items: Iterable[HeuristicConfig]) -> None:
-        key_spacing = 0 if verbose else max_key_len(items)
 
-        formatter = click.HelpFormatter()
-        with formatter.section(click.style(name, bold=True)):
-            for item in sorted_by_key(items):
-                if verbose:
-                    with formatter.section(format_item_section(item, key_spacing, bold=True)):
-                        formatter.write_text(item.description)
-                else:
-                    formatter.write_text(format_item_section(item, key_spacing))
+        if filtered_items := list(contains_key_filter(heuristic, items)):
+            key_spacing = 0 if verbose else max_key_len(filtered_items)
 
-        click.echo(formatter.getvalue())
+            with formatter.section(click.style(name, bold=True)):
+                for item in sorted_by_key(filtered_items):
+                    if verbose:
+                        with formatter.section(format_item_section(item, key_spacing, bold=True)):
+                            formatter.write_text(item.description)
+                    else:
+                        formatter.write_text(format_item_section(item, key_spacing))
 
     with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
         config = Config().add_config_file(file)
 
     build_section("Metadata Heuristics", config.get_metadata())
     build_section("Sourcecode Heuristics", config.get_sourcecode())
+
+    click.echo(formatter.getvalue())
