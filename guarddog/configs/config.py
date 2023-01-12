@@ -117,23 +117,33 @@ class Config:
     _metadata: dict[str, MetadataConfig] = {}
     _sourcecode: dict[str, SourcecodeConfig] = {}
 
-    def add_config(self, path: str):
+    def add_config_file(self, path: PathLike[str]):
         config_file = ConfigFile(path)
 
         for metadata in config_file.get_metadata():
-            existing_metadata = self._metadata.get(metadata.key)
-            self._metadata[metadata.key] = metadata.join(existing_metadata)
+            self.add_metadata(metadata)
 
         for sourcecode in config_file.get_sourcecode():
-            existing_sourcecode = self._sourcecode.get(sourcecode.key)
-            self._sourcecode[sourcecode.key] = sourcecode.join(existing_sourcecode)
+            self.add_sourcecode(sourcecode)
 
         return self
 
-    @property
-    def metadata(self) -> Iterator[MetadataConfig]:
-        return iter(self._metadata.values())
+    def add_metadata(self, metadata: MetadataConfig):
+        if metadata.key in self._sourcecode:
+            raise ConfigError("Metadata Heuristic '%s' has a key that conflicts with a Sourcecode Heuristic")
 
-    @property
-    def sourcecode(self) -> Iterator[SourcecodeConfig]:
-        return iter(self._sourcecode.values())
+        existing_metadata = self._metadata.get(metadata.key)
+        self._metadata[metadata.key] = metadata.join(existing_metadata)
+
+    def add_sourcecode(self, sourcecode: SourcecodeConfig):
+        if sourcecode.key in self._metadata:
+            raise ConfigError("Sourcecode Heuristic '%s' has a key that conflicts with a Metadata Heuristic")
+
+        existing_sourcecode = self._sourcecode.get(sourcecode.key)
+        self._sourcecode[sourcecode.key] = sourcecode.join(existing_sourcecode)
+
+    def get_metadata(self) -> Iterable[MetadataConfig]:
+        return list(self._metadata.values())
+
+    def get_sourcecode(self) -> Iterable[SourcecodeConfig]:
+        return list(self._sourcecode.values())
