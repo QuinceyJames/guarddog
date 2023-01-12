@@ -1,7 +1,8 @@
 import importlib
 from abc import ABC, abstractmethod
-from collections.abc import Iterator
+from collections.abc import Iterator, Iterable
 from dataclasses import dataclass
+from os import PathLike
 from typing import Type
 
 import yaml
@@ -16,7 +17,6 @@ class ConfigError(Exception):
 @dataclass(kw_only=True, frozen=True)
 class HeuristicConfig(ABC):
     key: str
-    name: str
     category: str
     description: str
     disabled: bool
@@ -37,7 +37,6 @@ class SourcecodeConfig(HeuristicConfig):
         return (
             SourcecodeConfig(
                 key=get_first("key"),
-                name=get_first("name"),
                 description=get_first("description"),
                 category=get_first("category"),
                 disabled=get_first("disabled"),
@@ -73,7 +72,6 @@ class MetadataConfig(HeuristicConfig):
         return (
             MetadataConfig(
                 key=get_first("key"),
-                name=get_first("name"),
                 description=get_first("description"),
                 category=get_first("category"),
                 disabled=get_first("disabled"),
@@ -83,7 +81,7 @@ class MetadataConfig(HeuristicConfig):
 
 
 class ConfigFile:
-    def __init__(self, file: str):
+    def __init__(self, file: PathLike[str]):
         try:
             with open(file, 'r') as file:
                 self._contents = yaml.safe_load(file)
@@ -95,7 +93,6 @@ class ConfigFile:
             yield (
                 MetadataConfig(
                     key=key,
-                    name=item.get("name"),
                     category=item.get("category"),
                     description=item.get("description"),
                     disabled=item.get("disabled"),
@@ -108,7 +105,6 @@ class ConfigFile:
             yield (
                 SourcecodeConfig(
                     key=key,
-                    name=item.get("name"),
                     category=item.get("category"),
                     description=item.get("description"),
                     disabled=item.get("disabled"),

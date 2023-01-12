@@ -2,64 +2,52 @@ schema-version: 0.1
 
 metadata:
   empty_information:
-    name: "Empty package description"
     description: "Package has an empty description of PyPI"
     location: "guarddog.analyzer.metadata.empty_information.EmptyInfoDetector"
     category: "normal"
   potentially_compromised_email_domain:
-    name: "Potentially compromised maintainer e-mail domain"
     description: "Maintainer e-mail address is associated to a domain that was re-registered later than the last package release. This can be an indicator that this is a custom domain that expired, and was leveraged by an attacker to compromise the package owner's PyPI account."
     location: "guarddog.analyzer.metadata.potentially_compromised_email_domain.PotentiallyCompromisedEmailDomainDetector"
     category: "normal"
   release_zero:
-    name: "Release 0.0.0"
     description: "Package has its latest release set to 0.0.0 or 0.0"
     location: "guarddog.analyzer.metadata.release_zero.ReleaseZeroDetector"
     category: "normal"
   typosquatting:
-    name: "Typosquatting"
     description: "Package has a name close to one of the top 5k PyPI packages"
     location: "guarddog.analyzer.metadata.typosquatting.TyposquatDetector"
     category: "normal"
 
 sourcecode:
   cmd-overwrite:
-    name: "Command overwrite"
     description: "The install command is overwritten in the setup.py file, indicating that a system command is automatically run when installing the package through pip install."
     location: "./guarddog/analyzer/sourcecode/cmd-overwrite.yml"
     category: "normal"
   code-execution:
-    name: "Code execution in setup.py"
     description: "Code in setup.py executes code dynamically or starts a new process"
     location: "./guarddog/analyzer/sourcecode/code-execution.yml"
     category: "normal"
   download-executable:
-    name: "Download of an executable to disk"
     description: "Data coming from an HTTP response ends up being written to disk and made executable"
     location: "./guarddog/analyzer/sourcecode/download-executable.yml"
     category: "normal"
   exec-base64:
-    name: "Dynamic execution of base64-encoded data"
     description: "A base64-encoded string ends up being executed by a function like exec or eval"
     location: "./guarddog/analyzer/sourcecode/exec-base64.yml"
     category: "normal"
   exfiltrate-sensitive-data:
-    name: "Exfiltration of sensitive data to a remote server"
     description: "Sensitive data from the environment ends up being sent through an HTTP request"
     location: "./guarddog/analyzer/sourcecode/exfiltrate-sensitive-data.yml"
     category: "normal"
   obfuscation:
-    name: "Use of a common obfuscation method"
     description: "The package uses an obfuscation method commonly used by malware, such as running eval on hexadecimal strings"
     location: "./guarddog/analyzer/sourcecode/obfuscation.yml"
     category: "normal"
   shady-links:
-    name: "Unusual domain extension"
     description: "Usage of a domain name with an extension frequently used by malware (e.g. .xyz or .top)"
     location: "./guarddog/analyzer/sourcecode/shady-links.yml"
     category: "normal"
   steganography:
-    name: "Dynamic execution of hidden data from an image"
     description: "The package uses steganography to extract a payload from an image and execute it"
     location: "./guarddog/analyzer/sourcecode/steganography.yml"
     category: "normal"
