@@ -2,12 +2,7 @@
 
 import sys
 
-import guarddog.cli
-
-
-def cli():
-    """Run guarddog from script entry point"""
-    return guarddog.cli.cli()
+from guarddog.cli import cli
 
 
 if __name__ == "__main__":
