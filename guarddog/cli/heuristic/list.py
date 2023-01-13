@@ -11,15 +11,8 @@ def sorted_by_key(items: Iterable[HeuristicConfig]) -> Iterable[HeuristicConfig]
     return sorted(items, key=lambda item: item.key)
 
 
-def contains_key_filter(keys: Iterable[str], items: Iterable[HeuristicConfig]):
-    if keys:
-        return filter(lambda item: item.key in keys, items)
-
-    return items
-
-
 def max_key_len(items: Iterable[HeuristicConfig]) -> int:
-    return max([len(item.key) for item in items])
+    return max([len(item.key) for item in items], default=0)
 
 
 def format_disabled_text(is_disabled: bool) -> str:
@@ -42,9 +35,9 @@ def format_item_section(item: HeuristicConfig, spacing: int, **style_args) -> st
 @click.command("list")
 @click.argument("heuristic", nargs=-1)
 @click.option("-c", "--category", multiple=True, help="Filter by category.")
-@click.option("--enabled/--disabled", default=None, help="Filter by disabled status.")
+@click.option("--disabled/--enabled", default=None, help="Filter by disabled status.")
 @click.option("-v", "--verbose", is_flag=True, help="Enables verbose mode.")
-def list_command(heuristic, category, enabled, verbose):
+def list_command(heuristic, category, disabled, verbose):
     """
     Get a list of all available heuristics.
 
@@ -54,24 +47,20 @@ def list_command(heuristic, category, enabled, verbose):
     """
 
     formatter = click.HelpFormatter()
+    filter_map = {
+        "key": heuristic,
+        "category": category,
+        "disabled": disabled,
+    }
 
     def build_section(name, items: Iterable[HeuristicConfig]) -> None:
-
-        filtered_items = [
-            item for item in items
-
-            if not heuristic or item.key in heuristic
-            if not category or item.category in category
-            if enabled is None or bool(item.disabled) != enabled
-        ]
-
-        if not filtered_items:
+        if not items:
             return
 
-        key_spacing = 0 if verbose else max_key_len(filtered_items)
+        key_spacing = 0 if verbose else max_key_len(items)
 
         with formatter.section(click.style(name, bold=True)):
-            for item in sorted_by_key(filtered_items):
+            for item in sorted_by_key(items):
                 if verbose:
                     with formatter.section(format_item_section(item, key_spacing, bold=True)):
                         formatter.write_text(item.description)
@@ -81,7 +70,7 @@ def list_command(heuristic, category, enabled, verbose):
     with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
         config = Config().add_config_file(file)
 
-        build_section("Metadata Heuristics", config.get_metadata())
-        build_section("Sourcecode Heuristics", config.get_sourcecode())
+        build_section("Metadata Heuristics", config.get_metadata(**filter_map))
+        build_section("Sourcecode Heuristics", config.get_sourcecode(**filter_map))
 
         click.echo(formatter.getvalue())

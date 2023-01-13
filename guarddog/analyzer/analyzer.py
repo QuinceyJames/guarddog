@@ -1,12 +1,11 @@
 import os
+from importlib import resources
 from pathlib import Path
 
 from semgrep.semgrep_main import invoke_semgrep  # type: ignore
 
-from guarddog.analyzer.metadata.potentially_compromised_email_domain import PotentiallyCompromisedEmailDomainDetector
-from guarddog.analyzer.metadata.empty_information import EmptyInfoDetector
-from guarddog.analyzer.metadata.typosquatting import TyposquatDetector
-from guarddog.analyzer.metadata.release_zero import ReleaseZeroDetector
+import guarddog
+from guarddog.configs.config import Config
 
 
 class Analyzer:
@@ -14,29 +13,20 @@ class Analyzer:
     Analyzes a local directory for threats found by source code or metadata rules
 
     Attributes:
-        metadata_path (str): path to metadata rules
-        sourcecode_path (str): path to source code rules
-
         metadata_ruleset (list): list of metadata rule names
         sourcecode_ruleset (list): list of source code rule names
 
         exclude (list): list of directories to exclude from source code search
-
-        metadata_detectors(list): list of metadata detectors
     """
 
     def __init__(self) -> None:
-        self.metadata_path = os.path.join(os.path.dirname(__file__), "metadata")
-        self.sourcecode_path = os.path.join(os.path.dirname(__file__), "sourcecode")
+        self.config = Config()
 
-        # Define sourcecode and metadata rulesets
-        def get_rules(file_extension, path):
-            return set(rule.replace(file_extension, "") for rule in os.listdir(path) if rule.endswith(file_extension))
+        with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
+            self.config.add_config_file(file)
 
-        self.metadata_ruleset = get_rules(".py", self.metadata_path)
-        self.sourcecode_ruleset = get_rules(".yml", self.sourcecode_path)
-        self.metadata_ruleset.remove("detector")
-        self.metadata_ruleset.remove("__init__")
+        self.metadata_ruleset = {heuristic.key for heuristic in self.config.get_metadata()}
+        self.sourcecode_ruleset = {heuristic.key for heuristic in self.config.get_sourcecode()}
 
         # Define paths to exclude from sourcecode analysis
         self.exclude = [
@@ -53,14 +43,6 @@ class Analyzer:
             ".github",
             ".semgrep_logs",
         ]
-
-        # Rules and associated detectors
-        self.metadata_detectors = {
-            "typosquatting": TyposquatDetector(),
-            "potentially_compromised_email_domain": PotentiallyCompromisedEmailDomainDetector(),
-            "empty_information": EmptyInfoDetector(),
-            "release_zero": ReleaseZeroDetector()
-        }
 
     def analyze(self, path, info=None, rules=None) -> dict:
         """
@@ -89,6 +71,7 @@ class Analyzer:
             sourcecode_rules = set()
             metadata_rules = set()
 
+            breakpoint()
             for rule in rules:
                 if rule in self.sourcecode_ruleset:
                     sourcecode_rules.add(rule)
@@ -119,19 +102,18 @@ class Analyzer:
             dict[str]: map from each metadata rule and their corresponding output
         """
 
-        all_rules = rules if rules is not None else self.metadata_ruleset
         results = {}
         errors = {}
         issues = 0
 
-        for rule in all_rules:
+        for heuristic in self.config.get_metadata(key=rules):
             try:
-                rule_matches, message = self.metadata_detectors[rule].detect(info)
+                rule_matches, message = heuristic.detector().detect(info)
                 if rule_matches:
                     issues += 1
-                    results[rule] = message
+                    results[heuristic.key] = message
             except Exception as e:
-                errors[rule] = f"failed to run rule {rule}: {str(e)}"
+                errors[heuristic.key] = f"failed to run rule {heuristic.key}: {str(e)}"
 
         return {"results": results, "errors": errors, "issues": issues}
 
@@ -147,31 +129,24 @@ class Analyzer:
             dict[str]: map from each source code rule and their corresponding output
         """
         target_path = Path(path)
-
-        filtered_rules = [
-            rule for rule in self.sourcecode_ruleset
-
-            if rules and rule in rules
-        ]
-
-        results = {rule: {} for rule in filtered_rules}
+        results = {}
         errors = {}
         issues = 0
 
-        for rule in filtered_rules:
+        for heuristic in self.config.get_sourcecode(key=rules):
             try:
                 response = invoke_semgrep(
-                    Path(os.path.join(self.sourcecode_path, rule + ".yml")),
+                    heuristic.absolute_location,
                     [target_path],
                     exclude=self.exclude,
                     no_git_ignore=True,
                 )
-                rule_results = self._format_semgrep_response(response, rule=rule, targetpath=target_path)
+                rule_results = self._format_semgrep_response(response, rule=heuristic.key, targetpath=target_path)
                 issues += len(rule_results)
 
                 results = results | rule_results
             except Exception as e:
-                errors[rule] = f"failed to run rule {rule}: {str(e)}"
+                errors[heuristic.key] = f"failed to run rule {heuristic.key}: {str(e)}"
 
         return {"results": results, "errors": errors, "issues": issues}
 

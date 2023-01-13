@@ -7,6 +7,7 @@ import yaml
 
 from guarddog.configs.heuristic_config import HeuristicConfig, MetadataConfig, SourcecodeConfig
 from guarddog.utils.exceptions import ConfigError
+from guarddog.utils.filters import filter_by_attributes
 
 _HeuristicConfig_T = TypeVar("_HeuristicConfig_T", bound=HeuristicConfig)
 
@@ -71,8 +72,8 @@ class Config:
         existing_sourcecode = self._sourcecode.get(sourcecode.key)
         self._sourcecode[sourcecode.key] = SourcecodeConfig.join(existing_sourcecode, sourcecode)
 
-    def get_metadata(self) -> Iterable[MetadataConfig]:
-        return list(self._metadata.values())
+    def get_metadata(self, **filters) -> Iterable[MetadataConfig]:
+        return list(filter_by_attributes(self._metadata.values(), **filters))
 
-    def get_sourcecode(self) -> Iterable[SourcecodeConfig]:
-        return list(self._sourcecode.values())
+    def get_sourcecode(self, **filters) -> Iterable[SourcecodeConfig]:
+        return list(filter_by_attributes(self._sourcecode.values(), **filters))

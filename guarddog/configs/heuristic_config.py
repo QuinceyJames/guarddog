@@ -1,4 +1,5 @@
 import importlib
+import os
 from abc import ABC
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,7 +34,9 @@ class HeuristicConfig(ABC):
 
 @dataclass(kw_only=True, frozen=True, slots=True)
 class SourcecodeConfig(HeuristicConfig):
-    pass
+    @property
+    def absolute_location(self) -> Path:
+        return Path(os.path.dirname(self.config_location), self.location)
 
 
 @dataclass(kw_only=True, frozen=True, slots=True)
