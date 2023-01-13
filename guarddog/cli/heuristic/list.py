@@ -41,11 +41,17 @@ def format_item_section(item: HeuristicConfig, spacing: int, **style_args) -> st
 
 @click.command("list")
 @click.argument("heuristic", nargs=-1)
-@click.option("-c", "--category", multiple=True, help="Filter by category")
-@click.option("--enabled/--disabled", default=None)
-@click.option('-v', '--verbose', is_flag=True, help='Enables verbose mode')
+@click.option("-c", "--category", multiple=True, help="Filter by category.")
+@click.option("--enabled/--disabled", default=None, help="Filter by disabled status.")
+@click.option("-v", "--verbose", is_flag=True, help="Enables verbose mode.")
 def list_command(heuristic, category, enabled, verbose):
-    """Get a list of all available heuristics"""
+    """
+    Get a list of all available heuristics.
+
+    Results are returned sorted and its category and disabled status are shown in brackets
+
+        e.g. heuristic_name (category, enabled)
+    """
 
     formatter = click.HelpFormatter()
 
@@ -75,7 +81,7 @@ def list_command(heuristic, category, enabled, verbose):
     with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
         config = Config().add_config_file(file)
 
-    build_section("Metadata Heuristics", config.get_metadata())
-    build_section("Sourcecode Heuristics", config.get_sourcecode())
+        build_section("Metadata Heuristics", config.get_metadata())
+        build_section("Sourcecode Heuristics", config.get_sourcecode())
 
-    click.echo(formatter.getvalue())
+        click.echo(formatter.getvalue())
