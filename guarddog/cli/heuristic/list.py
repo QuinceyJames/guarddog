@@ -41,24 +41,36 @@ def format_item_section(item: HeuristicConfig, spacing: int, **style_args) -> st
 
 @click.command("list")
 @click.argument("heuristic", nargs=-1)
+@click.option("-c", "--category", multiple=True, help="Filter by category")
+@click.option("--enabled/--disabled", default=None)
 @click.option('-v', '--verbose', is_flag=True, help='Enables verbose mode')
-def list_command(heuristic, verbose):
+def list_command(heuristic, category, enabled, verbose):
     """Get a list of all available heuristics"""
 
     formatter = click.HelpFormatter()
 
     def build_section(name, items: Iterable[HeuristicConfig]) -> None:
 
-        if filtered_items := list(contains_key_filter(heuristic, items)):
-            key_spacing = 0 if verbose else max_key_len(filtered_items)
+        filtered_items = [
+            item for item in items
 
-            with formatter.section(click.style(name, bold=True)):
-                for item in sorted_by_key(filtered_items):
-                    if verbose:
-                        with formatter.section(format_item_section(item, key_spacing, bold=True)):
-                            formatter.write_text(item.description)
-                    else:
-                        formatter.write_text(format_item_section(item, key_spacing))
+            if not heuristic or item.key in heuristic
+            if not category or item.category in category
+            if enabled is None or bool(item.disabled) != enabled
+        ]
+
+        if not filtered_items:
+            return
+
+        key_spacing = 0 if verbose else max_key_len(filtered_items)
+
+        with formatter.section(click.style(name, bold=True)):
+            for item in sorted_by_key(filtered_items):
+                if verbose:
+                    with formatter.section(format_item_section(item, key_spacing, bold=True)):
+                        formatter.write_text(item.description)
+                else:
+                    formatter.write_text(format_item_section(item, key_spacing))
 
     with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
         config = Config().add_config_file(file)
