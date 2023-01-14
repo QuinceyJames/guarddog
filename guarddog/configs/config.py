@@ -1,9 +1,10 @@
 import importlib
-from abc import ABC, abstractmethod
+from abc import ABC
 from collections.abc import Iterator, Iterable
 from dataclasses import dataclass
 from os import PathLike
-from typing import Type
+from pathlib import Path
+from typing import Type, TypeVar
 
 import yaml
 
@@ -14,37 +15,35 @@ class ConfigError(Exception):
     pass
 
 
-@dataclass(kw_only=True, frozen=True)
+@dataclass(kw_only=True, frozen=True, slots=True)
 class HeuristicConfig(ABC):
     key: str
     category: str
     description: str
     disabled: bool
     location: str
+    config_location: Path
 
-    @abstractmethod
-    def join(self, *configs: 'HeuristicConfig') -> 'HeuristicConfig':
-        pass
+    @classmethod
+    def join(cls, *configs: 'HeuristicConfig') -> 'HeuristicConfig':
+
+        kwargs = {}
+        for slot in cls.__slots__:
+
+            kwargs[slot] = None
+            for config in filter(None, configs):
+                if (value := getattr(config, slot)) is not None:
+                    kwargs[slot] = value
+
+        return cls(**kwargs)
 
 
+@dataclass(kw_only=True, frozen=True, slots=True)
 class SourcecodeConfig(HeuristicConfig):
-    def join(self, *configs: 'SourcecodeConfig') -> 'SourcecodeConfig':
-        def get_first(keyword):
-            for config in [self, *configs]:
-                if config and config.__dict__[keyword]:
-                    return config.__dict__[keyword]
-
-        return (
-            SourcecodeConfig(
-                key=get_first("key"),
-                description=get_first("description"),
-                category=get_first("category"),
-                disabled=get_first("disabled"),
-                location=get_first("location")
-            )
-        )
+    pass
 
 
+@dataclass(kw_only=True, frozen=True, slots=True)
 class MetadataConfig(HeuristicConfig):
     def detector(self) -> Type[Detector]:
         module_name, _, class_name = self.location.rpartition(".")
@@ -63,54 +62,39 @@ class MetadataConfig(HeuristicConfig):
         else:
             raise ConfigError("Class '%s' must be a subclass of '%s'" % (self.key, Detector.__name__))
 
-    def join(self, *configs: 'MetadataConfig') -> 'MetadataConfig':
-        def get_first(keyword):
-            for config in [self, *configs]:
-                if config and config.__dict__[keyword]:
-                    return config.__dict__[keyword]
 
-        return (
-            MetadataConfig(
-                key=get_first("key"),
-                description=get_first("description"),
-                category=get_first("category"),
-                disabled=get_first("disabled"),
-                location=get_first("location")
-            )
-        )
+_HeuristicConfig_T = TypeVar("_HeuristicConfig_T", bound=HeuristicConfig)
 
 
 class ConfigFile:
-    def __init__(self, file: PathLike[str]):
+    def __init__(self, location: PathLike[str]):
         try:
-            with open(file, 'r') as file:
+            self._location = Path(location).absolute()
+            with open(location, 'r') as file:
                 self._contents = yaml.safe_load(file)
         except FileNotFoundError:
             raise ConfigError()
 
+    def _get_heuristic(self, cls: Type[_HeuristicConfig_T], heuristic_type_key: str) -> Iterator[_HeuristicConfig_T]:
+        all_configs = self._contents.get(heuristic_type_key, {}).items()
+
+        for heuristic_key, config in all_configs:
+            kwargs = {
+                slot: config.get(slot)
+
+                for slot in cls.__slots__
+            }
+
+            kwargs["key"] = heuristic_key
+            kwargs["config_location"] = self._location
+
+            yield cls(**kwargs)
+
     def get_metadata(self) -> Iterator[MetadataConfig]:
-        for key, item in self._contents.get("metadata", {}).items():
-            yield (
-                MetadataConfig(
-                    key=key,
-                    category=item.get("category"),
-                    description=item.get("description"),
-                    disabled=item.get("disabled"),
-                    location=item.get("location")
-                )
-            )
+        return self._get_heuristic(MetadataConfig, "metadata")
 
     def get_sourcecode(self) -> Iterator[SourcecodeConfig]:
-        for key, item in self._contents.get("sourcecode", {}).items():
-            yield (
-                SourcecodeConfig(
-                    key=key,
-                    category=item.get("category"),
-                    description=item.get("description"),
-                    disabled=item.get("disabled"),
-                    location=item.get("location")
-                )
-            )
+        return self._get_heuristic(SourcecodeConfig, "sourcecode")
 
 
 class Config:
@@ -133,14 +117,14 @@ class Config:
             raise ConfigError("Metadata Heuristic '%s' has a key that conflicts with a Sourcecode Heuristic")
 
         existing_metadata = self._metadata.get(metadata.key)
-        self._metadata[metadata.key] = metadata.join(existing_metadata)
+        self._metadata[metadata.key] = MetadataConfig.join(existing_metadata, metadata)
 
     def add_sourcecode(self, sourcecode: SourcecodeConfig):
         if sourcecode.key in self._metadata:
             raise ConfigError("Sourcecode Heuristic '%s' has a key that conflicts with a Metadata Heuristic")
 
         existing_sourcecode = self._sourcecode.get(sourcecode.key)
-        self._sourcecode[sourcecode.key] = sourcecode.join(existing_sourcecode)
+        self._sourcecode[sourcecode.key] = SourcecodeConfig.join(existing_sourcecode, sourcecode)
 
     def get_metadata(self) -> Iterable[MetadataConfig]:
         return list(self._metadata.values())
