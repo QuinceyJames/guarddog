@@ -21,8 +21,8 @@ class ConfigFile:
         except FileNotFoundError:
             raise ConfigError()
 
-    def _get_heuristic(self, cls: Type[_HeuristicConfig_T], heuristic_type_key: str) -> Iterator[_HeuristicConfig_T]:
-        all_configs = self._contents.get(heuristic_type_key, {}).items()
+    def _get_heuristic(self, cls: Type[_HeuristicConfig_T]) -> Iterator[_HeuristicConfig_T]:
+        all_configs = self._contents.get(cls.class_key(), {}).items()
 
         for heuristic_key, config in all_configs:
             kwargs = {
@@ -37,10 +37,10 @@ class ConfigFile:
             yield cls(**kwargs)
 
     def get_metadata(self) -> Iterator[MetadataConfig]:
-        return self._get_heuristic(MetadataConfig, "metadata")
+        return self._get_heuristic(MetadataConfig)
 
     def get_sourcecode(self) -> Iterator[SourcecodeConfig]:
-        return self._get_heuristic(SourcecodeConfig, "sourcecode")
+        return self._get_heuristic(SourcecodeConfig)
 
 
 class Config:
@@ -62,15 +62,27 @@ class Config:
         if metadata.key in self._sourcecode:
             raise ConfigError("Metadata Heuristic '%s' has a key that conflicts with a Sourcecode Heuristic")
 
-        existing_metadata = self._metadata.get(metadata.key)
-        self._metadata[metadata.key] = MetadataConfig.join(existing_metadata, metadata)
+        try:
+            existing_metadata = self._metadata[metadata.key]
+        except KeyError:
+            new_metadata = metadata
+        else:
+            new_metadata = existing_metadata.replace(**metadata.as_dict())
+
+        self._metadata[metadata.key] = new_metadata
 
     def add_sourcecode(self, sourcecode: SourcecodeConfig):
         if sourcecode.key in self._metadata:
             raise ConfigError("Sourcecode Heuristic '%s' has a key that conflicts with a Metadata Heuristic")
 
-        existing_sourcecode = self._sourcecode.get(sourcecode.key)
-        self._sourcecode[sourcecode.key] = SourcecodeConfig.join(existing_sourcecode, sourcecode)
+        try:
+            existing_sourcecode = self._sourcecode[sourcecode.key]
+        except KeyError:
+            new_sourcecode = sourcecode
+        else:
+            new_sourcecode = existing_sourcecode.replace(**sourcecode.as_dict())
+
+        self._sourcecode[sourcecode.key] = new_sourcecode
 
     def get_metadata(self, **filters) -> Iterable[MetadataConfig]:
         return list(filter_by_attributes(self._metadata.values(), **filters))

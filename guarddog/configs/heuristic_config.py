@@ -1,9 +1,10 @@
+import dataclasses
 import importlib
 import os
-from abc import ABC
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Type
+from typing import Type, Any
 
 from guarddog.analyzer.metadata.detector import Detector
 from guarddog.utils.exceptions import ConfigError
@@ -18,18 +19,16 @@ class HeuristicConfig(ABC):
     location: str
     config_location: Path
 
+    def replace(self, **changes: Any) -> 'HeuristicConfig':
+        return dataclasses.replace(self, **changes)
+
+    def as_dict(self):
+        return dataclasses.asdict(self)
+
     @classmethod
-    def join(cls, *configs: 'HeuristicConfig') -> 'HeuristicConfig':
-
-        kwargs = {}
-        for slot in cls.__slots__:
-
-            kwargs[slot] = None
-            for config in filter(None, configs):
-                if (value := getattr(config, slot)) is not None:
-                    kwargs[slot] = value
-
-        return cls(**kwargs)
+    @abstractmethod
+    def class_key(cls) -> str:
+        pass
 
 
 @dataclass(kw_only=True, frozen=True, slots=True)
@@ -37,6 +36,10 @@ class SourcecodeConfig(HeuristicConfig):
     @property
     def absolute_location(self) -> Path:
         return Path(os.path.dirname(self.config_location), self.location)
+
+    @classmethod
+    def class_key(cls) -> str:
+        return "sourcecode"
 
 
 @dataclass(kw_only=True, frozen=True, slots=True)
@@ -59,3 +62,7 @@ class MetadataConfig(HeuristicConfig):
             raise ConfigError("Cannot find class '%s' inside module '%s'" % (class_name, module_name))
         else:
             raise ConfigError("Class '%s' must be a subclass of '%s'" % (self.key, Detector.__name__))
+
+    @classmethod
+    def class_key(cls) -> str:
+        return "metadata"
