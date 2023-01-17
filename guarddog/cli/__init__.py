@@ -58,11 +58,10 @@ def verify(path, json, exit_non_zero_on_finding):
 @click.argument("identifier")
 @click.option("-v", "--version", default=None, help="Specify a version to scan")
 @click.option("-r", "--rules", multiple=True, type=click.Choice(ALL_RULES, case_sensitive=False))
-@click.option("-x", "--exclude-rules", multiple=True, type=click.Choice(ALL_RULES, case_sensitive=False))
 @click.option("--json", default=False, is_flag=True, help="Dump the output as JSON to standard out")
 @click.option("--exit-non-zero-on-finding", default=False, is_flag=True, help="Exit with a non-zero status code if at "
                                                                               "least one issue is identified")
-def scan(identifier, version, rules, exclude_rules, json, exit_non_zero_on_finding):
+def scan(identifier, version, rules, json, exit_non_zero_on_finding):
     """Scan a package
 
     Args:
@@ -74,8 +73,6 @@ def scan(identifier, version, rules, exclude_rules, json, exit_non_zero_on_findi
     rule_param = None
     if len(rules) != 0:
         rule_param = rules
-    if len(exclude_rules):
-        rule_param = ALL_RULES - set(exclude_rules)
 
     scanner = PackageScanner()
     results = {}
