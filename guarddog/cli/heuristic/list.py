@@ -37,7 +37,8 @@ def format_item_section(item: HeuristicConfig, spacing: int, **style_args) -> st
 @click.option("-c", "--category", multiple=True, help="Filter by category.")
 @click.option("--disabled/--enabled", default=None, help="Filter by disabled status.")
 @click.option("-v", "--verbose", is_flag=True, help="Enables verbose mode.")
-def list_command(heuristic, category, disabled, verbose):
+@click.pass_obj
+def list_command(config, heuristic, category, disabled, verbose):
     """
     Get a list of all available heuristics.
 
@@ -67,10 +68,7 @@ def list_command(heuristic, category, disabled, verbose):
                 else:
                     formatter.write_text(format_item_section(item, key_spacing))
 
-    with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
-        config = Config().add_config_file(file)
+    build_section("Metadata Heuristics", config.get_heuristics(**filter_map))
+    build_section("Sourcecode Heuristics", config.get_heuristics(**filter_map))
 
-        build_section("Metadata Heuristics", config.get_metadata(**filter_map))
-        build_section("Sourcecode Heuristics", config.get_sourcecode(**filter_map))
-
-        click.echo(formatter.getvalue())
+    click.echo(formatter.getvalue())

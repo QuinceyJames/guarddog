@@ -6,7 +6,7 @@ from typing import Optional
 from packaging.utils import canonicalize_name
 import requests
 
-from guarddog.analyzer.metadata.detector import Detector
+from guarddog.analyzer.detector import Detector
 
 
 class TyposquatDetector(Detector):

@@ -3,7 +3,7 @@
 Detects if a package contains an empty description
 """
 
-from guarddog.analyzer.metadata.detector import Detector
+from guarddog.analyzer.detector import Detector
 
 
 class EmptyInfoDetector(Detector):

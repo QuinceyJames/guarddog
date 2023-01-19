@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import tempfile
 
 import requests
@@ -22,6 +23,18 @@ class PackageScanner(Scanner):
     def __init__(self) -> None:
         self.analyzer = Analyzer()
         super(Scanner)
+
+    @staticmethod
+    def is_local_package(identifier):
+        """Determines if the input passed to the 'scan' command is a local package name"""
+
+        identifier_is_path = re.search(r"(.{0,2}\/)+.+", identifier)
+        return identifier_is_path or identifier.endswith('.tar.gz')
+
+    def scan(self, identifier, version=None, rules=None):
+        if self.is_local_package(identifier):
+            return self.scan_local(identifier, rules)
+        return self.scan_remote(identifier, version, rules)
 
     def scan_local(self, path, rules=None) -> dict:
         """

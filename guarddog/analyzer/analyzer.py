@@ -25,8 +25,8 @@ class Analyzer:
         with resources.as_file(resources.files(guarddog).joinpath("../.guarddog.yaml")) as file:
             self.config.add_config_file(file)
 
-        self.metadata_ruleset = {heuristic.key for heuristic in self.config.get_metadata()}
-        self.sourcecode_ruleset = {heuristic.key for heuristic in self.config.get_sourcecode()}
+        self.metadata_ruleset = {heuristic.key for heuristic in self.config.get_heuristics()}
+        self.sourcecode_ruleset = {heuristic.key for heuristic in self.config.get_heuristics()}
 
         # Define paths to exclude from sourcecode analysis
         self.exclude = [
@@ -63,22 +63,10 @@ class Analyzer:
         metadata_results = None
         sourcecode_results = None
 
-        # populate results, errors, and number of issues
-        metadata_rules = None
-        sourcecode_rules = None
-        if rules is not None:
-            # Only run specific rules
-            sourcecode_rules = set()
-            metadata_rules = set()
+        heuristics = self.config.get_heuristics(key=rules)
+        for missing_heuristic in {rules} - {heuristic.key for heuristic in heuristics}:
 
-            breakpoint()
-            for rule in rules:
-                if rule in self.sourcecode_ruleset:
-                    sourcecode_rules.add(rule)
-                elif rule in self.metadata_ruleset:
-                    metadata_rules.add(rule)
-                else:
-                    raise Exception(f"{rule} is not a valid rule.")
+
 
         metadata_results = self.analyze_metadata(info, metadata_rules)
         sourcecode_results = self.analyze_sourcecode(path, sourcecode_rules)
@@ -106,7 +94,7 @@ class Analyzer:
         errors = {}
         issues = 0
 
-        for heuristic in self.config.get_metadata(key=rules):
+        for heuristic in self.config.get_heuristics(key=rules):
             try:
                 rule_matches, message = heuristic.detector().detect(info)
                 if rule_matches:
@@ -133,20 +121,20 @@ class Analyzer:
         errors = {}
         issues = 0
 
-        for heuristic in self.config.get_sourcecode(key=rules):
-            try:
-                response = invoke_semgrep(
-                    heuristic.absolute_location,
-                    [target_path],
-                    exclude=self.exclude,
-                    no_git_ignore=True,
-                )
-                rule_results = self._format_semgrep_response(response, rule=heuristic.key, targetpath=target_path)
-                issues += len(rule_results)
-
-                results = results | rule_results
-            except Exception as e:
-                errors[heuristic.key] = f"failed to run rule {heuristic.key}: {str(e)}"
+        for heuristic in self.config.get_heuristics(key=rules):
+            # try:
+            #     response = invoke_semgrep(
+            #         heuristic.absolute_location,
+            #         [target_path],
+            #         exclude=self.exclude,
+            #         no_git_ignore=True,
+            #     )
+            #     rule_results = self._format_semgrep_response(response, rule=heuristic.key, targetpath=target_path)
+            #     issues += len(rule_results)
+            #
+            #     results = results | rule_results
+            # except Exception as e:
+            #     errors[heuristic.key] = f"failed to run rule {heuristic.key}: {str(e)}"
 
         return {"results": results, "errors": errors, "issues": issues}
 

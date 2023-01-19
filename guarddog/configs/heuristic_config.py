@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Type, Any
 
-from guarddog.analyzer.metadata.detector import Detector
+from guarddog.analyzer.detector import Detector
 from guarddog.utils.exceptions import ConfigError
 
 
@@ -25,6 +25,11 @@ class HeuristicConfig(ABC):
     def as_dict(self):
         return dataclasses.asdict(self)
 
+    @property
+    @abstractmethod
+    def detector(self) -> Type[Detector]:
+        pass
+
     @classmethod
     @abstractmethod
     def class_key(cls) -> str:
@@ -33,6 +38,10 @@ class HeuristicConfig(ABC):
 
 @dataclass(kw_only=True, frozen=True, slots=True)
 class SourcecodeConfig(HeuristicConfig):
+    @property
+    def detector(self) -> Type[Detector]:
+        pass
+
     @property
     def absolute_location(self) -> Path:
         return Path(os.path.dirname(self.config_location), self.location)

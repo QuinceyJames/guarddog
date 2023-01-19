@@ -1,3 +1,4 @@
+from abc import ABC
 from collections.abc import Iterator, Iterable
 from os import PathLike
 from pathlib import Path
@@ -44,48 +45,30 @@ class ConfigFile:
 
 
 class Config:
-    _metadata: dict[str, MetadataConfig] = {}
-    _sourcecode: dict[str, SourcecodeConfig] = {}
+
+    def __init__(self):
+        self._saved_heuristics: dict[str, HeuristicConfig] = {}
 
     def add_config_file(self, path: PathLike[str]):
         config_file = ConfigFile(path)
 
-        for metadata in config_file.get_metadata():
-            self.add_metadata(metadata)
+        for heuristic in config_file.get_metadata():
+            self.save_heuristic(heuristic)
 
-        for sourcecode in config_file.get_sourcecode():
-            self.add_sourcecode(sourcecode)
+        for heuristic in config_file.get_metadata():
+            self.save_heuristic(heuristic)
 
         return self
 
-    def add_metadata(self, metadata: MetadataConfig):
-        if metadata.key in self._sourcecode:
-            raise ConfigError("Metadata Heuristic '%s' has a key that conflicts with a Sourcecode Heuristic")
-
+    def save_heuristic(self, heuristic: HeuristicConfig):
         try:
-            existing_metadata = self._metadata[metadata.key]
+            existing_heuristic = self._saved_heuristics[heuristic.key]
         except KeyError:
-            new_metadata = metadata
+            new_heuristic = heuristic
         else:
-            new_metadata = existing_metadata.replace(**metadata.as_dict())
+            new_heuristic = existing_heuristic.replace(**heuristic.as_dict())
 
-        self._metadata[metadata.key] = new_metadata
+        self._saved_heuristics[heuristic.key] = new_heuristic
 
-    def add_sourcecode(self, sourcecode: SourcecodeConfig):
-        if sourcecode.key in self._metadata:
-            raise ConfigError("Sourcecode Heuristic '%s' has a key that conflicts with a Metadata Heuristic")
-
-        try:
-            existing_sourcecode = self._sourcecode[sourcecode.key]
-        except KeyError:
-            new_sourcecode = sourcecode
-        else:
-            new_sourcecode = existing_sourcecode.replace(**sourcecode.as_dict())
-
-        self._sourcecode[sourcecode.key] = new_sourcecode
-
-    def get_metadata(self, **filters) -> Iterable[MetadataConfig]:
-        return list(filter_by_attributes(self._metadata.values(), **filters))
-
-    def get_sourcecode(self, **filters) -> Iterable[SourcecodeConfig]:
-        return list(filter_by_attributes(self._sourcecode.values(), **filters))
+    def get_heuristics(self, **filters) -> Iterable[HeuristicConfig]:
+        return list(filter_by_attributes(self._saved_heuristics.values(), **filters))

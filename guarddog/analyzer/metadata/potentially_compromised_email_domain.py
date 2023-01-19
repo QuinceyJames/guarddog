@@ -10,7 +10,7 @@ import whois  # type: ignore
 from dateutil import parser
 from packaging import version
 
-from guarddog.analyzer.metadata.detector import Detector
+from guarddog.analyzer.detector import Detector
 
 
 class PotentiallyCompromisedEmailDomainDetector(Detector):
