@@ -1,0 +1,7 @@
+services:
+  dev:
+    build:
+      dockerfile: Dockerfile
+    volumes:
+      - .:/app
+    entrypoint: tail -f /dev/null
